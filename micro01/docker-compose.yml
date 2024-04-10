@@ -1,0 +1,73 @@
+version: "3.7"
+services:
+  app_micro01:
+    build:
+      args:
+        user: davi
+        uid: 1000
+      context: ./
+      dockerfile: Dockerfile.dev
+    working_dir: /var/www/
+    environment:
+      - COMPOSER_MEMORY_LIMIT=-1
+    depends_on:
+      - db_micro01
+    volumes:
+      - ./:/var/www
+    networks:
+      - lahmi
+      
+  db_micro01:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: local_laravel
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_PASSWORD: secret
+      MYSQL_USER: local_developer
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    volumes:
+      - db_micro01data:/var/lib/mysql
+      - ./docker-compose/mysql/my.cnf:/etc/mysql/my.cnf
+      - ./docker-compose/mysql/init:/docker-entrypoint-initdb_micro01.d
+    ports:
+      - 3307:3306
+    networks:
+      - lahmi
+
+  phpmyadmin_micro01:
+    image: phpmyadmin/phpmyadmin
+    links:
+      - db_micro01
+    environment:
+      PMA_HOST: db_micro01
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+    restart: always
+    ports:
+      - 8081:80
+    networks:
+      - lahmi
+
+  nginx_micro01:
+    image: nginx:alpine
+    ports:
+      - 8005:80
+    depends_on:
+      - db_micro01
+      - app_micro01
+    volumes:
+      - ./:/var/www
+      - ./docker-compose/nginx:/etc/nginx/conf.d/
+    networks:
+      - lahmi
+
+networks:
+  lahmi:
+    driver: bridge
+    external: true
+      
+
+volumes:
+  db_micro01data:
+    driver: local
